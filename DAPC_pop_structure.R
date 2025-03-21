@@ -10,8 +10,17 @@ vcf <- read.vcfR("Data/Goe_filtered095_Het60_pruned.vcf.gz")   # Load compressed
 gl <- vcfR2genlight(vcf)                             # Convert VCF data to a genlight object for compatibility with `adegenet`
 
 ######## Load Population Data ########
-pop.data <- read.table("Data/populations_filtered.txt", sep = "\t", header = TRUE)   # Load population information
-pop(gl) <- as.factor(pop.data$pop)                  # Assign population data to genlight object
+pop.data <- read.table("Data/populations_filtered.txt", sep = "\t", header = F)  %>%
+  rename(sample = 1, pop = 2) 
+#pop.data$pop <- as.factor(pop.data$pop)  # Convert population column to factor
+
+length(unique(pop.data$pop))
+
+sample.order = data.frame(sample = gl@ind.names)
+
+pop.data.ordered = sample.order %>% left_join(pop.data, by = 'sample')
+
+pop(gl) <- as.factor(pop.data.ordered$pop)       
 
 ######## Perform Clustering and DAPC ########
 grp <- find.clusters(gl, max.n.clust = 19)          # Use `find.clusters` to identify clusters
