@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ############# KOOPERATIV Bombus pascuorum samples from 2023 NGS pipeline ################ 
 
 
@@ -62,8 +64,6 @@ bwa-mem2 index $genome
 # rm -f = force remove intermediary files
 
 cd $batch_number/Aligned_GATK
-
-batch_number=3rd_batch
 
 for i in `ls -1  $batch_number/Clean/*_clean_1.fastq.gz`
     do dname=$(dirname ${i}); name=$(basename ${i} _clean_1.fastq.gz)
