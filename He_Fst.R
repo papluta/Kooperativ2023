@@ -2,13 +2,13 @@
 library(vcfR)
 library(adegenet)
 library(hierfstat)
-library(dartR)
+library(dartRverse)
 library(StAMPP)
 
 ###### Read and Process VCF File ######
 vcf <- read.vcfR("Data/Goe_filtered095_Het60_pruned.vcf.gz")  # Change to your VCF filename
 gl <- vcfR2genlight(vcf)  # Convert to genlight object
-
+gl <- gl[indNames(gl) != "C49_C49", ]
 ###### Read Population Data ######
 pop.data <- read.table("Data/populations_filtered.txt", sep = "\t", header = F)  %>%
   rename(sample = 1, pop = 2) # Ensure this file has a column named "pop"
@@ -21,26 +21,27 @@ sample.order = data.frame(sample = gl@ind.names)
 pop.data.ordered = sample.order %>% left_join(pop.data, by = 'sample')
 
 ###### Assign Population Information ######
-ploidy(gl) <- 2  # Set ploidy level (diploid)
-pop(gl) <- pop.data.ordered$pop  # Assign populations from external file
-gl  # Check if populations are correctly assigned
+ploidy(gl) <- 2  
+pop(gl) <- pop.data.ordered$pop  
+gl  
 
 ###### Compliance Check ######
 glx <- gl.compliance.check(gl)
+glx_nomono <- gl.filter.monomorphs(glx)
 
 ###### Heterozygosity Analysis Using dartR ######
-df <- gl.report.heterozygosity(glx, method = "pop", plot.out = FALSE)  # Compute heterozygosity per population
-write.csv(df, "Results/Goe_filtered095_Het60_pruned_heterozygosity.csv")  # Save heterozygosity results
+df <- gl.report.heterozygosity(glx, method = "pop",  nboots = 100)  
+write.csv(df, "Results/Goe_filtered095_Het60_pruned_heterozygosity_boot.csv")  
 
 ###### Population Divergence Analysis (StAMPP) ######
 ## Convert genlight object to StAMPP-compatible format ##
-x <- vcfR2genlight(vcf)  # Convert VCF again to ensure correct format
-x2 <- as.matrix(x)  # Convert genlight object to matrix
-sample <- row.names(x2)  # Extract sample names
+
+x2 <- as.matrix(x)  
+sample <- row.names(x2)  
 
 ## Merge with Population Information ##
-pop.names <- pop.data.ordered$pop  # Extract population names from file
-ploidy <- ploidy(x)  # Get ploidy level for each sample
+pop.names <- pop.data.ordered$pop  
+ploidy <- ploidy(x)  
 x2 = x2 * (1/ploidy)  # Convert allele counts to frequency
 x2[is.na(x2)] <- NaN  # Replace missing values with NaN
 

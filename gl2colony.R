@@ -59,24 +59,24 @@ seed = sample.int(65535, 1)                # Seed for random number generator
 update_allele_freq = 0     # 0/1=Not updating/updating allele frequency
 di_mono_ecious = 2         # 2/1=Dioecious/Monoecious species
 inbreed = 0                # 0/1=no inbreeding/inbreeding
-haplodiploid = 0           # 0/1=Diploid species/HaploDiploid species
+haplodiploid = 1           # 0/1=Diploid species/HaploDiploid species
 polygamy_male = 0          # 0/1=Polygamy/Monogamy for males
 polygamy_female = 0        # 0/1=Polygamy/Monogamy for females
-clone_inference = 1        # 0/1=Clone inference =No/Yes
+clone_inference = 0        # 0/1=Clone inference =No/Yes
 scale_shibship = 1         # 0/1=Scale full sibship=No/Yes
 sibship_prior = 0          # 0/1/2/3/4=No/Weak/Medium/Strong/Optimal sibship prior
 known_allele_freq = 0      # 0/1=Unknown/Known population allele frequency
-num_runs = 1               # Number of runs
+num_runs = 5               # Number of runs
 length_run = 2             # 1/2/3/4=short/medium/long/very long run
 monitor_method = 0         # 0/1=Monitor method by Iterate#/Time in second
 monitor_interval = 10000   # Monitor interval in Iterate# / in seconds
 windows_gui = 0            # 0/1=No/Yes for run with Windows GUI
-likelihood = 0             # 0/1/2=PairLikelihood score/Fulllikelihood/FPLS
+likelihood = 1             # 0/1/2=PairLikelihood score/Fulllikelihood/FPLS
 precision_fl = 2           # 0/1/2/3=Low/Medium/High/Very high precision with Full-likelihood
 marker_id = 'mk@'          # Marker Ids
 marker_type = '0@'         # Marker types 0/1=Codominant/Dominant
 allelic_dropout = '0.00@' # Allelic dropout rate at each locus
-other_typ_err = '0.05@'    # Other typing error rate at each locus
+other_typ_err = '0.00@'    # Other typing error rate at each locus
 paternity_exclusion_threshold = '0 0'
 maternity_exclusion_threshold = '0 0'
 paternal_sibship = 0
@@ -182,7 +182,7 @@ gl2structure <- function(x,
 }
 
 
-x <- parental.ids(t3)
+x <- parental.ids(gl)
 
 offspring_ids <- x$offs
 dad_ids       <- x$dad
