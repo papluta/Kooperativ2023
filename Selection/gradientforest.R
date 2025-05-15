@@ -1,7 +1,9 @@
 library(data.table)
 library(gradientForest)
 
-frq <- fread("g090_maf001_dp4_not_related/merged_frequencies.txt", header = TRUE, sep = "\t")  
+setwd("/scratch/patrycja/Goettingen2024/all_batches/vcf/g090_maf001_dp4_not_related/")
+
+frq <- fread("merged_frequencies.txt", header = TRUE, sep = "\t")  
 dim(frq)                                               
 frq = frq[-14,] #remove NOM16
 
@@ -9,13 +11,13 @@ frq = frq[-14,] #remove NOM16
 gen <- frq[, 2:ncol(frq)]
 
 # Environmental Variables
-env <- read.csv("g090_maf001_dp4_not_related/land_rda.csv")  
+env <- read.csv("land_rda.csv")  
 env = env[env$Landscape != 'NOM16',]
 env = env[,-1]
  
 X11()
 maxLevel <- log2(0.368*nrow(env)/2)
-gf <- gradientForest(cbind(env, gen), predictor.vars=colnames(env), response.vars=colnames(gen), ntree=500, maxLevel=maxLevel, trace=T, corr.threshold=0.50)
+gf <- gradientForest(cbind(env, gen), predictor.vars=colnames(env), response.vars=colnames(gen), ntree=10, maxLevel=maxLevel, corr.threshold=0.50)
 imp_matrix <- gf$imp.rsq
 
 importance_scores_crop <- as.numeric(imp_matrix[1, ]) 

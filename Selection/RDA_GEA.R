@@ -3,22 +3,22 @@ library(vegan)
 library(tidyverse)
 library(dplyr)
 library(ggplot2)   
-library(psych)  
+library(psych)
 
 # Allele Frequency Table
-frq <- fread("g090_maf001_dp4_not_related/merged_frequencies.txt", header = TRUE, sep = "\t")  
-dim(frq)                                               
+frq <- fread("merged_frequencies.txt", header = TRUE, sep = "\t")  
+dim(frq)
 frq = frq[-14,] #remove NOM16
 
 # Extract Genotype Data and Environmental Data
 gen <- frq[, 2:ncol(frq)]
 
 # Environmental Variables
-env <- read.csv("g090_maf001_dp4_not_related/land_rda.csv")  
+env <- read.csv("land_rda.csv")  
 env = env[env$Landscape != 'NOM16',]
 
-X11()
-pairs.panels(env[,2:5], scale=T)
+# X11()
+# pairs.panels(env[,2:5], scale=T)
 
 # Redundancy Analysis Using Environmental and Geographic Variables
 RDA <- rda(gen ~ crop + LST + Condition(x + y), data = env, scale = TRUE)
@@ -27,25 +27,26 @@ RDA
 
 RsquareAdj(RDA)
 
-screeplot(RDA)
+# screeplot(RDA)
+
+scores(RDA, display = "bp")
 
 # Extract and Plot Loadings for the First RDA Axis
-load.rda <- scores(RDA, choices = c(1), display = "species")  # Extract species (SNP) scores for the first RDA axis
-#hist(load.rda[, 1], main = "Loadings on RDA1")                # Plot histogram of loadings on RDA1
+load.rda <- scores(RDA, choices = c(1,2), display = "species")  # Extract species (SNP) scores
+#hist(load.rda[, 1], main = "Loadings on RDA1")
 
 # Save Loadings to CSV
-colnames(load.rda) <- c("loading")
-write.csv(load.rda, "RDAload_crop_temp_xy.csv", row.names = FALSE)
+
 
 # Define Function to Identify Outliers Based on Standard Deviation Threshold
 outliers <- function(x, z) {
-    lims <- mean(x) + c(-1, 1) * z * sd(x)   # Set upper and lower bounds (z SD from mean)
-    x[x < lims[1] | x > lims[2]]             # Return SNP names in tails of distribution
+    lims <- mean(x) + c(-1, 1) * z * sd(x)  
+    x[x < lims[1] | x > lims[2]]            
 }
 
 # Identify Outliers on the First RDA Axis (3 SD from Mean)
-cand1 <- outliers(load.rda[, 1], 3)        # SNPs with loadings > 3 SD from mean on RDA1
-cand2 <- outliers(load.rda[, 2], 3) 
+cand1 <- outliers(load.rda[, "RDA1"], 3)        # SNPs with loadings > 3 SD from mean on RDA1
+cand2 <- outliers(load.rda[, "RDA2"], 3) 
 # Count the Number of Outliers
 ncand <- length(cand1) + length(cand2)
 ncand
@@ -53,14 +54,30 @@ ncand
 # Save Outliers as a Data Frame
 
 ### COMBINE CANDIDATE GENES
-cand <- cbind.data.frame(rep(1, times = length(cand1)), names(cand1), unname(cand1),
-                         rep(1, times = length(cand2)), names(cand2), unname(cand2))
-colnames(cand) <- c("axis", "snp", "loading")       # Add column names
+
+cand1.1 <- cbind.data.frame(predictor = rep("LST", times = length(cand1)), snp = names(cand1), loading = unname(cand1))
+cand2.2 <- cbind.data.frame(predictor = rep("crop", times = length(cand2)), snp = names(cand2), loading = unname(cand2))
+cand = rbind(cand1.1, cand2.2)  # Combine candidate SNPs from both axes
+
 cand$snp <- as.character(cand$snp)                 # Ensure SNP column is character type
 head(cand)
 
-# Save Outliers to CSV
-write.csv(cand, "RDA_crop_temp_xy.csv", row.names = FALSE)
+# Save Outliers
+write.csv(cand, "RDA/RDA_cand_crop_temp_xy.csv", row.names = FALSE)
+
+# Save all SNPs
+load.rda  = as.data.frame(load.rda)
+load.rda$snp = rownames(load.rda)
+rownames(load.rda) = NULL
+colnames(load.rda) = c("LST","crop", "snp")
+write.csv(load.rda, "RDA/RDAload_all_crop_temp_xy.csv", row.names = FALSE)
+
+# limits for plotting
+lims <- mean(load.rda[, "RDA1"]) + c(1) * 3 * sd(load.rda[, "RDA1"]) # 0.0377047138230125
+lims <- mean(load.rda[, "RDA2"]) + c(1) * 3 * sd(load.rda[, "RDA2"]) # 0.0322803435154258
+
+
+######
 
 hm = as.data.frame(load.rda[,1])
 hm$snp = rownames(hm)

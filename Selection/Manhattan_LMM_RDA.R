@@ -1,14 +1,11 @@
-R
-# Load required libraries
-library(dplyr)       # For data manipulation
-library(ggplot2)     # For creating visualizations
-library(ggnewscale)  # For adding multiple scales for color or fill in ggplot2
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
 
-# Set working directory (Add the path here if necessary)
 
 # Read baseline data
-data <- read.table("RDABaseforplot.txt", header = TRUE, sep = "\t")  # Load the main RDA dataset
-data$CHROM <- as.factor(data$CHR)  # Convert chromosome column to factor for categorical handling
+RDA_full <- read.csv("RDA/RDAload_all_crop_temp_xy.csv")
+RDA_full$chr <- sub("/.1.*","", RDA_full$snp)  # Extract chromosome from SNP names
 
 # Read outliers LFMM and RDA data
 outliers_lfmm <- read.table("BL_LMM_OUTLIERS_POS_CHROM_SPLIT.txt", header = TRUE, sep = "\t")  # LFMM outliers

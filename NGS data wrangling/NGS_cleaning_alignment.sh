@@ -7,8 +7,10 @@
 # batch_number is the folder for each batch (1st_batch, 2nd_batch, 3rd_batch, 4th_batch, 5th_batch)
 
 batch_number=2nd_batch
-
 mkdir $batch_number/Clean
+genome="/scratch/patrycja/reference_genomes/Bombus_pascuorum/GCF_905332965.1_iyBomPasc1.1_genomic.fna"
+prop_aligned="counts_summary.txt"
+mkdir $batch_number/Aligned_GATK	
 
 for i in "$batch_number"/*_R1_001.fastq.gz; \
 	do dname=$(dirname ${i}); name=$(basename ${i} _R1_001.fastq.gz); \
@@ -17,18 +19,12 @@ for i in "$batch_number"/*_R1_001.fastq.gz; \
 	ref=bbmap/resources/nextera.fa.gz ktrim=r k=17 mink=8 hdist=1 tpe tbo qtrim=rl trimq=30 ordered=t threads=112 stats=trimstats.txt ;
 done
 
-## make directories for aligned sequences
-mkdir $batch_number/Aligned_GATK
-
 ## call the genome (using the curated GCF version), to download here: https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_905332965.1/
-cd reference_genomes/Bombus_pascuorum/
-genome=GCF_905332965.1_iyBomPasc1.1_genomic.fna
 
 ## index genome
 samtools faidx $genome
 bwa-mem2 index $genome
 
-cd "$batch_number"/Aligned_GATK
 
 for i in "$batch_number"/Clean/*_clean_1.fastq.gz
 	do dname=$(dirname "${i}"); name=$(basename "${i}" _clean_1.fastq.gz)
@@ -59,24 +55,10 @@ done
 # -F 256 = filter out only secondary aligned reads
 
 
-output_file="counts_summary.txt"
-
 for i in "$batch_number"/Aligned_GATK/*_rmd.bam;
 do
 	base_name=$(basename "$i" _rmd.bam)
 	count_total=$(samtools view -c "$i")
 	count_mapped=$(samtools view -c -F 260 "$i")
-	echo "$base_name, $count_total, $count_mapped" >> "$output_file"
+	echo "$base_name, $count_total, $count_mapped" >> "$prop_aligned"
 done
-
-
-## get the genome coverage and error rate, run a script
-
-# add exe permission
-chmod +x bamGenomeCoverage2.sh
-
-#run the script
-bash bamGenomeCoverage2.sh 
-
-## exclude samples with low coverage (< 90%) from further analysis (9 samples excluded)
-## 705/714 samples retained
