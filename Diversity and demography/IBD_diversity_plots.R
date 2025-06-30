@@ -80,16 +80,17 @@ plot_data <- data.frame(GeographicDistance = geo_dist_values, GeneticDistance = 
 
 # Plot Isolation by Distance
 ggplot(plot_data, aes(x = exp(GeographicDistance), y = GeneticDistance)) +
-  geom_point(alpha = 0.4) +
-  geom_smooth(method = "lm",  color = "#2b7843") +
+  geom_point(alpha = 0.7, shape = 21) +
+  geom_smooth(method = "lm",  color = "black") +
   labs(x = "Geographic Distance (km)", y = "Genetic Distance (Fst)",
-       title = paste0("Isolation by Distance (r = ", round(mantel_result$statistic, 2), ", p = ", round(mantel_result$signif, 3), ")")) +
-  theme_bw()+
-  theme(panel.grid = element_blank())
+       title = NULL) +
+  theme_bw(base_size = 18)+
+  theme(panel.grid = element_blank(), axis.text = element_text(color = "black"))+
+  geom_text(aes(x = 21, y = 0.004), label = 'r = 0.35, p = < 0.01')
 
 write.csv(plot_data, "Results/Goe_IBD_exp_Fst.csv", row.names = TRUE)
 
-ggsave(file = 'Results/Goe_IBD_exp.png', height = 5, width = 5)
+ggsave(file = 'Results/Goe_IBD_exp.pdf', height = 5, width = 5)
 
 mite.correlog3 <-  mantel.correlog(as.dist(fst_matrix), as.dist(geo_dist_matrix), nperm=1000, n.class= 30, mult = "bonferroni")
 mite.correlog3

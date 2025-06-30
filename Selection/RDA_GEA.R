@@ -14,14 +14,14 @@ frq = frq[-14,] #remove NOM16
 gen <- frq[, 2:ncol(frq)]
 
 # Environmental Variables
-env <- read.csv("land_rda.csv")  
+env <- read.csv("land_env.csv")  
 env = env[env$Landscape != 'NOM16',]
 
 # X11()
 # pairs.panels(env[,2:5], scale=T)
 
 # Redundancy Analysis Using Environmental and Geographic Variables
-RDA <- rda(gen ~ crop + LST + Condition(x + y), data = env, scale = TRUE)
+RDA <- rda(gen ~ crop + LST_histday + Condition(x + y), data = env, scale = TRUE) # LSThistday = from 2000 to 2023
 
 RDA
 
@@ -73,32 +73,32 @@ colnames(load.rda) = c("LST","crop", "snp")
 write.csv(load.rda, "RDA/RDAload_all_crop_temp_xy.csv", row.names = FALSE)
 
 # limits for plotting
-lims <- mean(load.rda[, "RDA1"]) + c(1) * 3 * sd(load.rda[, "RDA1"]) # 0.0377047138230125
-lims <- mean(load.rda[, "RDA2"]) + c(1) * 3 * sd(load.rda[, "RDA2"]) # 0.0322803435154258
-
+lims1 <- mean(load.rda[, "LST"]) + c(1) * 3 * sd(load.rda[, "LST"]) # 0.0377047138230125
+lims2 <- mean(load.rda[, "crop"]) + c(1) * 3 * sd(load.rda[, "crop"]) # 0.0322803435154258
+lims1
+lims2
 
 ######
+# hm = as.data.frame(load.rda[,1])
+# hm$snp = rownames(hm)
+# rownames(hm) = NULL
+# hm$outlier = ifelse(hm$snp %in% cand$snp, TRUE, FALSE)
+# hm$pos = 1:nrow(hm)
+# colnames(hm) = c('load','snp', 'outlier','pos')
 
-hm = as.data.frame(load.rda[,1])
-hm$snp = rownames(hm)
-rownames(hm) = NULL
-hm$outlier = ifelse(hm$snp %in% cand$snp, TRUE, FALSE)
-hm$pos = 1:nrow(hm)
-colnames(hm) = c('load','snp', 'outlier','pos')
+# png(filename="outliers_rda.png", width = 1200, height = 480, units = "px")
 
-png(filename="outliers_rda.png", width = 1200, height = 480, units = "px")
+# ggplot(hm, aes(pos, load))+
+# geom_point(aes(col = outlier))
 
-ggplot(hm, aes(pos, load))+
-geom_point(aes(col = outlier))
+# dev.off()
+# frq2 = frq
+# colnames(frq2) = c(pop, 1:ncol(frq2))
+# frq.plot = frq2 %>% pivot_longer(cols = 2:ncol(frq2), names_to = 'snp', values_to = 'loading') %>% mutate(outlier = ifelse(snp %in% cand1$snp, TRUE, FALSE))
 
-dev.off()
-frq2 = frq
-colnames(frq2) = c(pop, 1:ncol(frq2))
-frq.plot = frq2 %>% pivot_longer(cols = 2:ncol(frq2), names_to = 'snp', values_to = 'loading') %>% mutate(outlier = ifelse(snp %in% cand1$snp, TRUE, FALSE))
+# png(filename="freq_rda.png", width = 1800, height = 480, units = "px")
 
-png(filename="freq_rda.png", width = 1800, height = 480, units = "px")
+# ggplot(frq.plot, aes(snp, loading))+
+# geom_point(aes(col = outlier))
 
-ggplot(frq.plot, aes(snp, loading))+
-geom_point(aes(col = outlier))
-
-dev.off()
+# dev.off()

@@ -10,26 +10,28 @@ vcf <- read.vcfR("Data/Goe_filtered095_Het60_pruned.vcf.gz")   # Load compressed
 gl <- vcfR2genlight(vcf)                             # Convert VCF data to a genlight object for compatibility with `adegenet`
 
 ######## Load Population Data ########
-pop.data <- read.table("Data/populations_filtered.txt", sep = "\t", header = F)  %>%
-  rename(sample = 1, pop = 2) 
+pop.data <- read.table("populations_filtered.txt", sep = "\t", header = F)
+colnames(pop.data) = c('sample', 'pop') 
 #pop.data$pop <- as.factor(pop.data$pop)  # Convert population column to factor
 
 length(unique(pop.data$pop))
 
-sample.order = data.frame(sample = gl@ind.names)
+sample.order = gl@ind.names
 
-pop.data.ordered = sample.order %>% left_join(pop.data, by = 'sample')
+pop.data.ordered = pop.data[match(sample.order, pop.data$sample), ]
+sample.order
+pop.data.ordered
 
-pop(gl) <- as.factor(pop.data.ordered$pop)       
+pop(gl) <- as.factor(pop.data.ordered$pop)
 
 ######## Perform Clustering and DAPC ########
-grp <- find.clusters(gl, max.n.clust = 19)          # Use `find.clusters` to identify clusters
-# - max.n.clust = 19: Set the maximum number of clusters, looking for a plateau in BIC plot
+grp <- find.clusters(gl, max.n.clust = 36)          # Set the maximum number of clusters (sites), looking for a plateau in BIC plot
 
 ######## Optimize the Number of Principal Components ########
-dapc <- dapc(gl, n.da = 100, n.pca = 100)           # Run DAPC with 100 discriminant functions and 100 PCs
-temp <- a.score(dapc)                               # Assess the quality of the DAPC (a-score)
-temp <- optim.a.score(dapc)                         # Optimize the number of PCs based on the a-score
+#dapc <- dapc(gl, n.da = 100, n.pca = 100)           # Run DAPC with 100 discriminant functions and 100 PCs
+dapc <- dapc(gl, grp$grp)           # Run DAPC with 100 discriminant functions and 100 PCs
+ascore <- a.score(dapc)                               # Assess the quality of the DAPC (a-score)
+optm.dapc <- optim.a.score(dapc)                         # Optimize the number of PCs based on the a-score
 
 ######## Save and Plot Final DAPC with Optimal PCs ########
 pdf("DAPCascore35.pdf")                          # Save plot to PDF

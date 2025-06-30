@@ -2,7 +2,7 @@ library(lfmm)
 library(data.table)
 library(qvalue)
 
-
+setwd("/scratch/patrycja/Goettingen2024/all_batches/vsf/")
 frq <- fread("merged_frequencies.txt", header = TRUE, sep = "\t")
 dim(frq)
 frq <- frq[-14, ] # remove NOM16
@@ -10,9 +10,12 @@ frq <- frq[-14, ] # remove NOM16
 gen <- frq[, 2:ncol(frq)]
 
 # Environmental Variables
-env <- read.csv("land_rda.csv")
+env <- read.csv("land_env.csv")
 env <- env[env$Landscape != "NOM16", ]
 
+
+### determine number of k ###
+# pc
 pc <- prcomp(gen)
 plot(pc$sdev[1:20]^2, xlab = "PC", ylab = "Variance explained")
 # points(5,pc$sdev[6]^2, type = "h", lwd = 3, col = "blue")
