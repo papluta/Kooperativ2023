@@ -8,4 +8,6 @@ old_scripts
 .csv
 .txt
 .vcf.gz
-
+*.png
+*.csv
+*.log
