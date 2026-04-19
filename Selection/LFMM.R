@@ -1,67 +1,129 @@
+
 library(lfmm)
 library(data.table)
 library(qvalue)
+library(dplyr)
 
-setwd("/scratch/patrycja/Goettingen2024/all_batches/vsf/")
-frq <- fread("merged_frequencies.txt", header = TRUE, sep = "\t")
+
+frq <- fread("allele_freq.txt", header = TRUE, sep = "\t")
 dim(frq)
-frq <- frq[-14, ] # remove NOM16
+
 
 gen <- frq[, 2:ncol(frq)]
+gen[,1]
 
 # Environmental Variables
-env <- read.csv("land_env.csv")
-env <- env[env$Landscape != "NOM16", ]
+land <- read.csv("landuse_1000m.csv")  
+xy <- read.csv("coordinates.csv")
+lst <- read.csv("lst.csv")
+xy = xy[xy$pop != 'NOM16',]
+land = land[land$Landscape != 'NOM16',]
 
+xy = lst %>% left_join(xy, by = "pop") %>% rename(Landscape = pop)
 
-### determine number of k ###
-# pc
+env <- land %>% left_join(xy, by = "Landscape") %>% mutate(man_made = road + urban)
+
+head(env)
+nrow(env)
+
+# how many Ks?
 pc <- prcomp(gen)
 plot(pc$sdev[1:20]^2, xlab = "PC", ylab = "Variance explained")
-# points(5,pc$sdev[6]^2, type = "h", lwd = 3, col = "blue")
 
-## crop and LST separately
-crop <- env$crop
+pred_interest <- c("man_made", "LST_historical_daytime", "crop_conven")
+X_env <- env %>%
+    transmute(across(all_of(c("crop_conven", "LST_historical_daytime", "man_made")), ~ scale(.x)))
+X_env
 
-lfmm_crop <- lfmm_ridge(Y = gen, X = crop, K = 13)
-crop.pv <- lfmm_test(Y = gen, X = crop, lfmm = lfmm_crop, calibrate = "gif")
-crop.pv$gif #### SHOULD BE AROUND 1
-crop.qv <- qvalue(crop.pv$calibrated.pvalue)$qvalues
-length(which(crop.qv < 0.05)) ## h.w many SNPs have an FDR < 5%?
-FDR.crop <- colnames(gen)[which(crop.qv < 0.05)]
+lfmm_all <- lfmm_ridge(Y = gen, X = X_env, K = 2)
+lfmm.pv <- lfmm_test(Y = gen, X = X_env, lfmm = lfmm_all, calibrate = "gif")
+lfmm.pv$gif 
 
-LFMM_c <- data.frame(snp = colnames(gen), q_value = crop.qv) %>%
-    filter(q_value < 0.05) %>%
-    mutate(predictor = "crop")
-rownames(LFMM_c) <- NULL
+lfmm.qv <- qvalue(lfmm.pv$calibrated.pvalue)$qvalues
+lfmm.qv
 
+lfmm_full <- as.data.frame(lfmm.qv)
+lfmm_full$snp = rownames(lfmm.qv)
+rownames(lfmm_full) = NULL
 
-LST <- env$LST
+write.csv(lfmm_full, "LFMM/260306_lfmm_full_k2.csv", row.names = FALSE)
 
-lfmm_LST <- lfmm_ridge(Y = gen, X = LST, K = 13)
-LST.pv <- lfmm_test(Y = gen, X = LST, lfmm = lfmm_LST, calibrate = "gif")
-LST.pv$gif #### SHOULD BE AROUND 1
-LST.qv <- qvalue(LST.pv$calibrated.pvalue)$qvalues
-length(which(LST.qv < 0.05)) ## h.w many SNPs have an FDR < 5%?
-FDR.LST <- colnames(gen)[which(LST.qv < 0.05)]
-
-LFMM_t <- data.frame(snp = colnames(gen), q_value = LST.qv) %>%
-    filter(q_value < 0.05) %>%
-    mutate(predictor = "LST")
-rownames(LFMM_t) <- NULL
-
-LFMM = rbind(LFMM_c, LFMM_t)
-
-write.csv(LFMM, "LFMM/lfmm_k13.csv", row.names = FALSE)
-
-### all SNPs for Manhattan
-
-LFMM_c_full <- data.frame(snp = colnames(gen), crop_q_value = crop.qv)
-rownames(LFMM_c_full) <- NULL
+perm_pvals <- lapply(1:n_perm, function(i) {
+  if (i %% 10 == 0) cat("  perm", i, "\n")
+  
+  Xp <- X_env
+  idx <- sample.int(nrow(Xp))
+  
+  # Jointly permute all 3 predictors together (same row shuffle)
+  Xp[,] <- Xp[idx, , drop = FALSE]
+  
+  modp <- lfmm_ridge(Y = gen, X = Xp, K = K)
+  testp <- lfmm_test(Y = gen, X = Xp, lfmm = modp, calibrate = "gif")
+  
+  pp <- testp$calibrated.pvalue
+  if (is.vector(pp)) pp <- matrix(pp, ncol = ncol(Xp))
+  colnames(pp) <- colnames(Xp)
+  
+  pp
+})
 
 
-LFMM_t_full <- data.frame(snp = colnames(gen), LST_q_value = LST.qv) 
-rownames(LFMM_t_full) <- NULL
+## Empirical thresholds per predictor (multiple tails)
 
-LFMM_full = inner_join(LFMM_c_full, LFMM_t_full, by = 'snp')
-write.csv(LFMM_full, "LFMM/lfmm_full_k13.csv", row.names = FALSE)
+thr_probs <- c("0.2pct" = 0.002, "0.1pct" = 0.001, "0.05pct" = 0.0005)
+
+thr_by_pred <- rbindlist(lapply(names(thr_probs), function(lbl) {
+  pr <- thr_probs[[lbl]]
+  data.table(
+    Predictor = pred_interest,
+    Tail = lbl,
+    Prob = pr,
+    Threshold = sapply(pred_interest, function(p) {
+      vec <- unlist(lapply(perm_pvals, function(pp) pp[, p]))
+      as.numeric(quantile(vec, probs = pr, na.rm = TRUE))
+    })
+  )
+}))
+
+thr_file <- file.path(out_dir, "LFMM_Empirical_Thresholds_ByPredictor_MULTI.txt")
+fwrite(thr_by_pred, thr_file, sep = "\t")
+print(thr_by_pred)
+
+chosen_tail <- "0.05pct"  
+
+thr_chosen <- thr_by_pred[Tail == chosen_tail]
+thr_map <- setNames(thr_chosen$Threshold, thr_chosen$Predictor)
+
+results <- rbindlist(lapply(pred_interest, function(p) {
+  data.table(
+    SNP = colnames(Y),
+    Predictor = p,
+    PValue = p0[, p],
+    Threshold = thr_map[[p]],
+    Significant = p0[, p] <= thr_map[[p]]
+  )
+}), fill = TRUE)
+
+res_file <- file.path(out_dir, paste0("LFMM_results_", chosen_tail, "_ByPredictor.txt"))
+fwrite(results, res_file, sep = "\t")
+
+thr_chosen <- thr_by_pred[thr_by_pred$Tail == chosen_tail]
+thr_map <- setNames(thr_chosen$Threshold, thr_chosen$Predictor)
+
+results <- rbindlist(lapply(pred_interest, function(p) {
+  data.table(
+    SNP = colnames(Y),
+    Predictor = p,
+    PValue = p0[, p],
+    Threshold = thr_map[[p]],
+    Significant = p0[, p] <= thr_map[[p]]
+  )
+}), fill = TRUE)
+
+sig_only <- results[Significant == TRUE]
+
+fwrite(
+  sig_only,
+  file.path(out_dir, paste0("LFMM_Significant_SNPs_", chosen_tail, "_ByPredictor.txt")),
+  sep = "\t"
+)
